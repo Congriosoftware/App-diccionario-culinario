@@ -27,6 +27,17 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+              - name: Set Android app icon
+        run: |
+          ICON_SRC="app_icon.png"
+          RES_DIR="build_app/android/app/src/main/res"
+
+          for d in mipmap-hdpi mipmap-mdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p "$RES_DIR/$d"
+            cp "$ICON_SRC" "$RES_DIR/$d/ic_launcher.png"
+          done
+
+
       - name: Build release APK
         run: flutter build apk --release
 

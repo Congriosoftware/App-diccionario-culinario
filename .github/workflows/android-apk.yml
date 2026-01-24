@@ -26,11 +26,35 @@ jobs:
           cache: true
 
       # 1️⃣ Descomprimir el ZIP del código
-      - name: Unzip Flutter code bundle
+      -       - name: Unzip Flutter code bundle (auto-detect folder)
         run: |
-          unzip -q diccionario_app_flutter_code_only.zip
+          set -e
+          echo "== Repo root before unzip =="
           ls -la
-          ls -la diccionario_app_flutter_offline
+
+          echo "== ZIP content =="
+          unzip -l diccionario_app_flutter_code_only.zip | head -n 60
+
+          unzip -q diccionario_app_flutter_code_only.zip
+
+          echo "== Repo root after unzip =="
+          ls -la
+
+          # Detecta dónde está pubspec.yaml
+          SRC_PUBSPEC=$(find . -maxdepth 4 -name pubspec.yaml -print -quit)
+          if [ -z "$SRC_PUBSPEC" ]; then
+            echo "ERROR: No encuentro pubspec.yaml dentro del ZIP descomprimido"
+            exit 2
+          fi
+
+          SRC_DIR=$(dirname "$SRC_PUBSPEC")
+          echo "SRC_DIR=$SRC_DIR" >> $GITHUB_ENV
+
+          echo "== Detected SRC_DIR =="
+          echo "$SRC_DIR"
+          ls -la "$SRC_DIR"
+          ls -la "$SRC_DIR/lib" || true
+
 
       # 2️⃣ Crear proyecto Flutter limpio (android/ válido)
       - name: Create fresh Flutter project
@@ -38,15 +62,25 @@ jobs:
           flutter create -t app build_app
 
       # 3️⃣ Inyectar TU código + CSV externo
-      - name: Inject pubspec + lib + assets
+      -       - name: Inject pubspec + lib + assets (auto)
         run: |
-          cp diccionario_app_flutter_offline/pubspec.yaml build_app/pubspec.yaml
+          set -e
+          echo "Using SRC_DIR=$SRC_DIR"
+
+          # Comprobaciones mínimas
+          test -f "$SRC_DIR/pubspec.yaml" || (echo "ERROR: falta $SRC_DIR/pubspec.yaml" && exit 2)
+          test -f "$SRC_DIR/lib/main.dart" || (echo "ERROR: falta $SRC_DIR/lib/main.dart" && exit 2)
+          test -f "$SRC_DIR/app_icon.png" || (echo "ERROR: falta $SRC_DIR/app_icon.png" && exit 2)
+          test -f "diccionario.csv" || (echo "ERROR: falta diccionario.csv en la raíz del repo" && exit 2)
+
+          cp "$SRC_DIR/pubspec.yaml" build_app/pubspec.yaml
 
           rm -rf build_app/lib
-          cp -R diccionario_app_flutter_offline/lib build_app/lib
+          cp -R "$SRC_DIR/lib" build_app/lib
 
           mkdir -p build_app/assets
-          cp diccionario.csv build_app/assets/diccionario.csv
+          cp "diccionario.csv" build_app/assets/diccionario.csv
+
 
       # 4️⃣ Nombre de la app (launcher)
       - name: Set Android app name
@@ -57,15 +91,16 @@ jobs:
           sed -i "s#<string name=\"app_name\">.*</string>#<string name=\"app_name\">$APP_NAME</string>#g" "$STRINGS"
 
       # 5️⃣ Icono de la app
-      - name: Set Android launcher icon
+      -       - name: Set Android launcher icon
         run: |
-          ICON="diccionario_app_flutter_offline/app_icon.png"
+          ICON="$SRC_DIR/app_icon.png"
           RES="build_app/android/app/src/main/res"
 
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             mkdir -p "$RES/$d"
             cp "$ICON" "$RES/$d/ic_launcher.png"
           done
+
 
       # 6️⃣ Instalar dependencias
       - name: Flutter pub get

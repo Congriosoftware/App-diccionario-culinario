@@ -26,7 +26,7 @@ jobs:
           cache: true
 
       # 1️⃣ Descomprimir el ZIP del código
-      -       - name: Unzip Flutter code bundle (auto-detect folder)
+      - name: Unzip Flutter code bundle (auto-detect folder)
         run: |
           set -e
           echo "== Repo root before unzip =="
@@ -62,7 +62,7 @@ jobs:
           flutter create -t app build_app
 
       # 3️⃣ Inyectar TU código + CSV externo
-      -       - name: Inject pubspec + lib + assets (auto)
+      - name: Inject pubspec + lib + assets (auto)
         run: |
           set -e
           echo "Using SRC_DIR=$SRC_DIR"
@@ -91,7 +91,7 @@ jobs:
           sed -i "s#<string name=\"app_name\">.*</string>#<string name=\"app_name\">$APP_NAME</string>#g" "$STRINGS"
 
       # 5️⃣ Icono de la app
-      -       - name: Set Android launcher icon
+      - name: Set Android launcher icon
         run: |
           ICON="$SRC_DIR/app_icon.png"
           RES="build_app/android/app/src/main/res"

@@ -83,13 +83,43 @@ jobs:
 
 
       # 4️⃣ Nombre de la app (launcher)
-      - name: Set Android app name
+      - name: Set Android app name (launcher)
         run: |
+          set -e
           APP_NAME="S.O.S FeDe"
-          STRINGS="build_app/android/app/src/main/res/values/strings.xml"
+          STRINGS_FILE="build_app/android/app/src/main/res/values/strings.xml"
 
-          sed -i "s#<string name=\"app_name\">.*</string>#<string name=\"app_name\">$APP_NAME</string>#g" "$STRINGS"
+          echo "== Checking strings file path =="
+          ls -la build_app/android/app/src/main/res || true
+          ls -la build_app/android/app/src/main/res/values || true
 
+          # Si no existe, lo creamos (evita exit code 2)
+          if [ ! -f "$STRINGS_FILE" ]; then
+            echo "strings.xml no existe. Creándolo..."
+            mkdir -p "$(dirname "$STRINGS_FILE")"
+            cat > "$STRINGS_FILE" <<EOF
+          <resources>
+          <string name="app_name">$APP_NAME</string>
+          </resources>
+          EOF
+          fi
+
+          # Si existe app_name, lo reemplaza. Si no, lo añade.
+          if grep -q 'name="app_name"' "$STRINGS_FILE"; then
+            sed -i "s#<string name=\"app_name\">.*</string>#<string name=\"app_name\">$APP_NAME</string>#g" "$STRINGS_FILE"
+          else
+            sed -i "s#</resources>#  <string name=\"app_name\">$APP_NAME</string>\n</resources>#g" "$STRINGS_FILE"
+          fi
+
+          # Asegura que el Manifest usa @string/app_name
+          MANIFEST="build_app/android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            sed -i 's/android:label="[^"]*"/android:label="@string\/app_name"/g' "$MANIFEST"
+          fi
+
+          echo "== strings.xml final =="
+          cat "$STRINGS_FILE"
+ 
       # 5️⃣ Icono de la app
       - name: Set Android launcher icon
         run: |
